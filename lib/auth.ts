@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/drizzle/db";
 import { users } from "@/drizzle/schemas/user.schema";
 import { eq } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -26,17 +27,22 @@ export const authOptions: NextAuthOptions = {
 
         const user = result[0];
         
-        if (!user || user.password !== credentials.password) {
+        if (!user) {
           throw new Error("Invalid credentials");
         }
 
-        // ✅ Return user WITHOUT the image - it's too large for JWT
+        // Verify password with bcrypt
+        const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+        
+        if (!isPasswordValid) {
+          throw new Error("Invalid credentials");
+        }
+
         return {
           id: String(user.id),
           name: user.name,
           email: user.email,
           role: user.role,
-          // ❌ DON'T include image here - store URL in DB instead
         };
       },
     }),
@@ -55,18 +61,14 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        // ❌ Don't store image in token
       }
       return token;
     },
     
     async session({ session, token }) {
       if (session.user) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-        
-        // ✅ Fetch image from DB only when needed
-        // Or store just the Cloudinary URL (not base64)
+        session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
       return session;
     },
