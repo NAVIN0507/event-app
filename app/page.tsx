@@ -40,8 +40,8 @@ const HomePage = async () => {
       
       {/* Hero Section */}
       <section className="relative py-20 px-4 text-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)]" />
+        <div className="absolute inset-0 " />
+        <div className="absolute inset-0 border-b" />
         <div className="container mx-auto max-w-4xl relative z-10">
           <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-slide-up gradient-text">
             Discover Amazing Events

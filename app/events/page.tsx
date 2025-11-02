@@ -7,6 +7,7 @@ import { Navbar } from '@/components/navbar'
 import { EventsSearch } from '@/components/events-search'
 import { eq, desc, count, sql, ilike, or, gte } from 'drizzle-orm'
 import { Search } from 'lucide-react'
+import { Suspense } from 'react'
 
 interface EventsPageProps {
   searchParams: {
@@ -80,7 +81,21 @@ const EventsPage = async ({ searchParams }: EventsPageProps) => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8 animate-slide-up">
           <h1 className="text-3xl font-bold mb-6 gradient-text">Browse Events</h1>
-          <EventsSearch />
+          <Suspense fallback={
+            <div className="space-y-4">
+              <div className="flex gap-4 flex-wrap">
+                <div className="flex-1 min-w-[300px] h-10 bg-muted animate-pulse rounded"></div>
+                <div className="w-20 h-10 bg-muted animate-pulse rounded"></div>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <div className="w-20 h-8 bg-muted animate-pulse rounded"></div>
+                <div className="w-24 h-8 bg-muted animate-pulse rounded"></div>
+                <div className="w-20 h-8 bg-muted animate-pulse rounded"></div>
+              </div>
+            </div>
+          }>
+            <EventsSearch />
+          </Suspense>
         </div>
 
         {/* Events Grid */}
