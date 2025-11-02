@@ -1,146 +1,229 @@
-import { db } from '@/drizzle/db'
-import { events } from '@/drizzle/schemas/events'
-import { users } from '@/drizzle/schemas/user.schema'
-import { usersToEvents } from '@/drizzle/schemas/usersToEvents'
+"use client"
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Navbar } from '@/components/navbar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { eq } from 'drizzle-orm'
 import { format } from 'date-fns'
-import { Calendar, MapPin, Clock, Globe, ArrowLeft } from 'lucide-react'
-import { notFound, redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { Calendar, MapPin, Clock, Globe, ArrowLeft, CreditCard, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 
 interface RegisterPageProps {
-  params: {
+  params: Promise<{
     id: string
+  }>
+}
+
+interface Event {
+  id: string
+  title: string
+  description: string | null
+  date: string
+  time: string | null
+  location: string | null
+  image: string | null
+  isOnline: boolean
+  price: string
+  isPaid: boolean
+  organizer: {
+    name: string
+    organizationName: string | null
   }
 }
 
-async function registerForEvent(eventId: string, userId: string) {
-  'use server'
-  
-  try {
-    // Check if already registered
-    const existing = await db
-      .select()
-      .from(usersToEvents)
-      .where(
-        eq(usersToEvents.eventId, eventId) && 
-        eq(usersToEvents.userId, userId)
-      )
-      .limit(1)
+const RegisterPage = ({ params }: RegisterPageProps) => {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const [event, setEvent] = useState<Event | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [registering, setRegistering] = useState(false)
+  const [error, setError] = useState('')
+  const [eventId, setEventId] = useState<string | null>(null)
 
-    if (existing.length > 0) {
-      return { success: false, error: 'Already registered' }
+  // Resolve params Promise
+  useEffect(() => {
+    const resolveParams = async () => {
+      const resolvedParams = await params
+      setEventId(resolvedParams.id)
+    }
+    resolveParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!eventId) return
+
+    if (status === 'unauthenticated') {
+      router.push('/login')
+      return
     }
 
-    // Register user
-    await db.insert(usersToEvents).values({
-      eventId,
-      userId,
-    })
+    if (status === 'authenticated' && session?.user?.role !== 'attendee') {
+      router.push(`/events/${eventId}`)
+      return
+    }
 
-    return { success: true }
-  } catch (error) {
-    console.error('Registration error:', error)
-    return { success: false, error: 'Registration failed' }
-  }
-}
+    fetchEvent()
+  }, [status, session, eventId, router])
 
-const RegisterPage = async ({ params }: RegisterPageProps) => {
-  const session = await getServerSession(authOptions)
-  
-  if (!session?.user?.id) {
-    redirect('/login')
-  }
+  const fetchEvent = async () => {
+    if (!eventId) return
 
-  // Get event details
-  const eventResult = await db
-    .select({
-      id: events.id,
-      title: events.title,
-      description: events.description,
-      date: events.date,
-      time: events.time,
-      location: events.location,
-      image: events.image,
-      isOnline: events.isOnline,
-      price: events.price,
-      isPaid: events.isPaid,
-      organizer: {
-        name: users.name,
-        organizationName: users.organizationName,
-      },
-    })
-    .from(events)
-    .leftJoin(users, eq(events.organizerId, users.id))
-    .where(eq(events.id, params.id))
-    .limit(1)
-
-  if (eventResult.length === 0) {
-    notFound()
+    try {
+      const response = await fetch(`/api/events/${eventId}`)
+      if (response.ok) {
+        const eventData = await response.json()
+        setEvent(eventData)
+      } else {
+        setError('Event not found')
+      }
+    } catch (error) {
+      setError('Failed to load event')
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const event = eventResult[0]
+  const handleFreeRegistration = async () => {
+    if (!eventId) return
 
-  // Check if already registered
-  const existingRegistration = await db
-    .select()
-    .from(usersToEvents)
-    .where(
-      eq(usersToEvents.eventId, params.id) && 
-      eq(usersToEvents.userId, session.user.id)
+    setRegistering(true)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        router.push(`/events/${eventId}?registered=true`)
+      } else {
+        const data = await response.json()
+        setError(data.message || 'Registration failed')
+      }
+    } catch (error) {
+      setError('Registration failed. Please try again.')
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  const handlePaidRegistration = async () => {
+    if (!eventId) return
+
+    setRegistering(true)
+    setError('')
+
+    try {
+      const response = await fetch(`/api/events/${eventId}/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (response.ok) {
+        const { url } = await response.json()
+        window.location.href = url
+      } else {
+        const data = await response.json()
+        setError(data.message || 'Payment setup failed')
+      }
+    } catch (error) {
+      setError('Payment setup failed. Please try again.')
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <div className="animate-pulse space-y-6">
+              <div className="h-8 bg-muted rounded w-1/3"></div>
+              <div className="h-64 bg-muted rounded"></div>
+              <div className="h-32 bg-muted rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
     )
-    .limit(1)
-
-  if (existingRegistration.length > 0) {
-    redirect(`/events/${params.id}`)
   }
+
+  if (error && !event) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardContent className="text-center py-12">
+                <h2 className="text-2xl font-bold mb-4">Error</h2>
+                <p className="text-muted-foreground mb-4">{error}</p>
+                <Button asChild>
+                  <Link href="/events">Browse Events</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!event) return null
 
   const eventDate = new Date(event.date)
   const isUpcoming = eventDate > new Date()
 
   if (!isUpcoming) {
-    redirect(`/events/${params.id}`)
+    if (eventId) {
+      router.push(`/events/${eventId}`)
+    }
+    return null
   }
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-2xl mx-auto">
-          <div className="mb-6">
-            <Button variant="ghost" asChild className="mb-4">
-              <Link href={`/events/${params.id}`}>
+          <div className="mb-6 animate-slide-up">
+            <Button variant="ghost" asChild className="mb-4 hover-lift">
+              <Link href={`/events/${eventId}`}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Event
               </Link>
             </Button>
-            
-            <h1 className="text-3xl font-bold">Register for Event</h1>
+
+            <h1 className="text-3xl font-bold gradient-text">Register for Event</h1>
           </div>
 
           <div className="grid gap-6">
             {/* Event Summary */}
-            <Card>
+            <Card className="animate-slide-up hover-lift" style={{animationDelay: '0.1s'}}>
               <CardHeader>
-                <CardTitle>{event.title}</CardTitle>
+                <CardTitle className="gradient-text">{event.title}</CardTitle>
                 <CardDescription>
                   by {event.organizer.organizationName || event.organizer.name}
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent className="space-y-4">
                 {event.image && (
-                  <div className="aspect-video relative overflow-hidden rounded-lg">
-                    <img 
-                      src={event.image} 
+                  <div className="aspect-video relative overflow-hidden rounded-lg group">
+                    <img
+                      src={event.image}
                       alt={event.title}
-                      className="object-cover w-full h-full"
+                      className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
                     />
                   </div>
                 )}
@@ -181,53 +264,94 @@ const RegisterPage = async ({ params }: RegisterPageProps) => {
             </Card>
 
             {/* Registration Form */}
-            <Card>
+            <Card className="animate-slide-up hover-lift glass" style={{animationDelay: '0.3s'}}>
               <CardHeader>
-                <CardTitle>Registration Details</CardTitle>
+                <CardTitle className="gradient-text">Registration Details</CardTitle>
                 <CardDescription>
                   Confirm your registration for this event
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent>
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                  {error && (
+                    <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md animate-bounce-in">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center p-4 bg-gradient-to-r from-primary/10 to-secondary/10 rounded-lg border">
                     <span className="font-medium">Event Price</span>
-                    <span className="text-2xl font-bold">
+                    <span className="text-2xl font-bold gradient-text">
                       {event.isPaid ? `₹${event.price}` : "Free"}
                     </span>
                   </div>
 
                   <div className="space-y-2">
                     <p className="text-sm text-muted-foreground">
-                      Registering as: <strong>{session.user.name}</strong>
+                      Registering as: <strong>{session?.user?.name}</strong>
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      Email: <strong>{session.user.email}</strong>
+                      Email: <strong>{session?.user?.email}</strong>
                     </p>
                   </div>
 
                   {event.isPaid ? (
                     <div className="space-y-4">
-                      <p className="text-sm text-muted-foreground">
-                        You will be redirected to payment gateway to complete your registration.
-                      </p>
-                      <Button className="w-full" size="lg">
-                        Proceed to Payment
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CreditCard className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-800">Secure Payment</span>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          You will be redirected to Stripe's secure payment gateway to complete your registration.
+                        </p>
+                      </div>
+
+                      <Button
+                        className="w-full hover-lift animate-bounce-in"
+                        size="lg"
+                        onClick={handlePaidRegistration}
+                        disabled={registering}
+                      >
+                        {registering ? (
+                          'Setting up payment...'
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Pay ₹{event.price} & Register
+                          </>
+                        )}
                       </Button>
                     </div>
                   ) : (
-                    <form action={async () => {
-                      'use server'
-                      const result = await registerForEvent(params.id, session.user.id)
-                      if (result.success) {
-                        redirect(`/events/${params.id}?registered=true`)
-                      }
-                    }}>
-                      <Button type="submit" className="w-full" size="lg">
-                        Register for Free
+                    <div className="space-y-4">
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="font-medium text-green-800">Free Event</span>
+                        </div>
+                        <p className="text-sm text-green-700">
+                          This is a free event. Click below to complete your registration.
+                        </p>
+                      </div>
+
+                      <Button
+                        className="w-full hover-lift animate-bounce-in"
+                        size="lg"
+                        onClick={handleFreeRegistration}
+                        disabled={registering}
+                      >
+                        {registering ? (
+                          'Registering...'
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Register for Free
+                          </>
+                        )}
                       </Button>
-                    </form>
+                    </div>
                   )}
 
                   <p className="text-xs text-muted-foreground text-center">

@@ -39,20 +39,22 @@ const HomePage = async () => {
       <Navbar />
       
       {/* Hero Section */}
-      <section className="py-20 px-4 text-center bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto max-w-4xl">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+      <section className="relative py-20 px-4 text-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-secondary/5" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)]" />
+        <div className="container mx-auto max-w-4xl relative z-10">
+          <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-slide-up gradient-text">
             Discover Amazing Events
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-slide-up" style={{animationDelay: '0.2s'}}>
             Join thousands of people attending incredible events. From workshops to conferences, 
             find your next great experience.
           </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Button size="lg" asChild>
+          <div className="flex gap-4 justify-center flex-wrap animate-slide-up" style={{animationDelay: '0.4s'}}>
+            <Button size="lg" asChild className="hover-lift">
               <Link href="/events">Browse All Events</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild>
+            <Button size="lg" variant="outline" asChild className="hover-lift glass">
               <Link href="/sign-up">Get Started</Link>
             </Button>
           </div>
@@ -62,24 +64,30 @@ const HomePage = async () => {
       {/* Features Section */}
       <section className="py-16 px-4">
         <div className="container mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose EventHub?</h2>
+          <h2 className="text-3xl font-bold text-center mb-12 animate-slide-up">Why Choose EventHub?</h2>
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="text-center">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-primary" />
+            <div className="text-center animate-slide-up hover-lift p-6 rounded-lg transition-all duration-300 hover:bg-muted/50" style={{animationDelay: '0.1s'}}>
+              <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-12 w-12 text-primary" />
+              </div>
               <h3 className="text-xl font-semibold mb-2">Easy Discovery</h3>
               <p className="text-muted-foreground">
                 Find events that match your interests with our intuitive search and filtering.
               </p>
             </div>
-            <div className="text-center">
-              <Users className="h-12 w-12 mx-auto mb-4 text-primary" />
+            <div className="text-center animate-slide-up hover-lift p-6 rounded-lg transition-all duration-300 hover:bg-muted/50" style={{animationDelay: '0.2s'}}>
+              <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="h-12 w-12 text-primary" />
+              </div>
               <h3 className="text-xl font-semibold mb-2">Connect & Network</h3>
               <p className="text-muted-foreground">
                 Meet like-minded people and build meaningful connections at every event.
               </p>
             </div>
-            <div className="text-center">
-              <Zap className="h-12 w-12 mx-auto mb-4 text-primary" />
+            <div className="text-center animate-slide-up hover-lift p-6 rounded-lg transition-all duration-300 hover:bg-muted/50" style={{animationDelay: '0.3s'}}>
+              <div className="bg-primary/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="h-12 w-12 text-primary" />
+              </div>
               <h3 className="text-xl font-semibold mb-2">Seamless Experience</h3>
               <p className="text-muted-foreground">
                 From registration to check-in, enjoy a smooth and hassle-free experience.
@@ -101,18 +109,26 @@ const HomePage = async () => {
           
           {upcomingEvents.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcomingEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
+              {upcomingEvents.map((event, index) => (
+                <div 
+                  key={event.id} 
+                  className="animate-slide-up" 
+                  style={{animationDelay: `${index * 0.1}s`}}
+                >
+                  <EventCard event={event} />
+                </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <Calendar className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+            <div className="text-center py-12 animate-fade-in">
+              <div className="bg-primary/10 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-12 w-12 text-primary" />
+              </div>
               <h3 className="text-xl font-semibold mb-2">No upcoming events</h3>
-              <p className="text-muted-foreground mb-4">
-                Be the first to create an amazing event!
+              <p className="text-muted-foreground mb-4 max-w-md mx-auto">
+                Be the first to create an amazing event and bring people together!
               </p>
-              <Button asChild>
+              <Button asChild className="hover-lift">
                 <Link href="/sign-up">Get Started</Link>
               </Button>
             </div>

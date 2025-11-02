@@ -4,10 +4,9 @@ import { users } from '@/drizzle/schemas/user.schema'
 import { usersToEvents } from '@/drizzle/schemas/usersToEvents'
 import { EventCard } from '@/components/event-card'
 import { Navbar } from '@/components/navbar'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { EventsSearch } from '@/components/events-search'
 import { eq, desc, count, sql, ilike, or, gte } from 'drizzle-orm'
-import { Search, Filter } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 interface EventsPageProps {
   searchParams: {
@@ -20,27 +19,29 @@ const EventsPage = async ({ searchParams }: EventsPageProps) => {
   const search = searchParams.search || ''
   const filter = searchParams.filter || 'upcoming'
 
-  // Build query conditions
-  let whereConditions = []
-  
-  if (search) {
-    whereConditions.push(
-      or(
-        ilike(events.title, `%${search}%`),
-        ilike(events.description, `%${search}%`),
-        ilike(events.location, `%${search}%`)
-      )
-    )
-  }
+  // Build where condition
+  let whereCondition = undefined
 
-  if (filter === 'upcoming') {
-    whereConditions.push(gte(events.date, new Date()))
+  if (search && filter !== 'all') {
+    if (filter === 'upcoming') {
+      whereCondition = sql`(${ilike(events.title, `%${search}%`)} OR ${ilike(events.description, `%${search}%`)} OR ${ilike(events.location, `%${search}%`)}) AND ${events.date} >= ${new Date()}`
+    } else if (filter === 'past') {
+      whereCondition = sql`(${ilike(events.title, `%${search}%`)} OR ${ilike(events.description, `%${search}%`)} OR ${ilike(events.location, `%${search}%`)}) AND ${events.date} < ${new Date()}`
+    }
+  } else if (search) {
+    whereCondition = or(
+      ilike(events.title, `%${search}%`),
+      ilike(events.description, `%${search}%`),
+      ilike(events.location, `%${search}%`)
+    )
+  } else if (filter === 'upcoming') {
+    whereCondition = gte(events.date, new Date())
   } else if (filter === 'past') {
-    whereConditions.push(sql`${events.date} < ${new Date()}`)
+    whereCondition = sql`${events.date} < ${new Date()}`
   }
 
   // Get events with organizer info and attendee count
-  const allEvents = await db
+  let query = db
     .select({
       id: events.id,
       title: events.title,
@@ -63,68 +64,48 @@ const EventsPage = async ({ searchParams }: EventsPageProps) => {
     .from(events)
     .leftJoin(users, eq(events.organizerId, users.id))
     .leftJoin(usersToEvents, eq(events.id, usersToEvents.eventId))
-    .where(whereConditions.length > 0 ? sql`${whereConditions.join(' AND ')}` : undefined)
     .groupBy(events.id, users.id)
-    .orderBy(desc(events.date))
+
+  // Apply where condition if exists
+  if (whereCondition) {
+    query = query.where(whereCondition)
+  }
+
+  const allEvents = await query.orderBy(desc(events.date))
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-4">Browse Events</h1>
-          
-          {/* Search and Filter */}
-          <div className="flex gap-4 mb-6 flex-wrap">
-            <div className="relative flex-1 min-w-[300px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search events..."
-                defaultValue={search}
-                className="pl-10"
-                name="search"
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                variant={filter === 'upcoming' ? 'default' : 'outline'}
-                size="sm"
-              >
-                Upcoming
-              </Button>
-              <Button 
-                variant={filter === 'past' ? 'default' : 'outline'}
-                size="sm"
-              >
-                Past
-              </Button>
-              <Button 
-                variant={filter === 'all' ? 'default' : 'outline'}
-                size="sm"
-              >
-                All
-              </Button>
-            </div>
-          </div>
+        <div className="mb-8 animate-slide-up">
+          <h1 className="text-3xl font-bold mb-6 gradient-text">Browse Events</h1>
+          <EventsSearch />
         </div>
 
         {/* Events Grid */}
         {allEvents.length > 0 ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allEvents.map((event) => (
-              <EventCard key={event.id} event={event} />
+            {allEvents.map((event, index) => (
+              <div
+                key={event.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <EventCard event={event} />
+              </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Search className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+          <div className="text-center py-12 animate-fade-in">
+            <div className="bg-muted/50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Search className="h-12 w-12 text-muted-foreground" />
+            </div>
             <h3 className="text-xl font-semibold mb-2">No events found</h3>
-            <p className="text-muted-foreground">
-              {search 
-                ? `No events match "${search}". Try adjusting your search.`
-                : "No events available at the moment."
+            <p className="text-muted-foreground max-w-md mx-auto">
+              {search
+                ? `No events match "${search}". Try adjusting your search terms or browse all events.`
+                : "No events available at the moment. Check back soon for exciting new events!"
               }
             </p>
           </div>

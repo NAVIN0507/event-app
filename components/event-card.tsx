@@ -17,12 +17,12 @@ interface EventCardProps {
     location: string | null
     image: string | null
     isOnline: boolean
-    price: string
-    isPaid: boolean
+    price: string | null
+    isPaid: boolean | null
     organizer: {
-      name: string
+      name: string | null
       organizationName: string | null
-    }
+    } | null
     _count?: {
       attendees: number
     }
@@ -34,14 +34,15 @@ export function EventCard({ event }: EventCardProps) {
   const isUpcoming = eventDate > new Date()
   
   return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+    <Card className="overflow-hidden hover-lift animate-fade-in group">
       {event.image && (
         <div className="aspect-video relative overflow-hidden">
           <img 
             src={event.image} 
             alt={event.title}
-            className="object-cover w-full h-full"
+            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
           />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         </div>
       )}
       
@@ -92,10 +93,10 @@ export function EventCard({ event }: EventCardProps) {
         
         <div className="flex items-center justify-between">
           <div className="text-lg font-semibold">
-            {event.isPaid ? `₹${event.price}` : "Free"}
+            {event.isPaid && event.price ? `₹${event.price}` : "Free"}
           </div>
           <div className="text-sm text-muted-foreground">
-            by {event.organizer.organizationName || event.organizer.name}
+            by {event.organizer?.organizationName || event.organizer?.name || "Unknown Organizer"}
           </div>
         </div>
       </CardContent>
