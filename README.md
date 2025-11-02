@@ -1,5 +1,7 @@
 # EventHub
 Live Link: https://event-app-peach-iota.vercel.app/
+
+--
 A modern event management platform built with Next.js 15, featuring event discovery, registration, and management capabilities with dark/light theme support.
 
 ## Features
