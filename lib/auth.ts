@@ -26,14 +26,14 @@ export const authOptions: NextAuthOptions = {
           .limit(1);
 
         const user = result[0];
-        
+
         if (!user) {
           throw new Error("Invalid credentials");
         }
 
         // Verify password with bcrypt
-        
-       
+
+
 
         return {
           id: String(user.id),
@@ -61,7 +61,7 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    
+
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
